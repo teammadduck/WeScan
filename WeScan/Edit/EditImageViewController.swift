@@ -70,6 +70,12 @@ public final class EditImageViewController: UIViewController {
         setupConstraints()
         zoomGestureController = ZoomGestureController(image: image, quadView: quadView)
         addLongGesture(of: zoomGestureController)
+
+        detect(image: image) { [weak self] detectedQuad in
+            guard let quad = detectedQuad else { return }
+            self?.quad = quad
+            self?.displayQuad()
+        }
     }
     
     override public func viewDidLayoutSubviews() {
@@ -145,6 +151,36 @@ public final class EditImageViewController: UIViewController {
         let rotationAngle = Measurement<UnitAngle>(value: 90, unit: .degrees)
         reloadImage(withAngle: rotationAngle)
     }
+
+    public func useImage(image: UIImage) {
+        detect(image: image) { [weak self] detectedQuad in
+            guard let quad = detectedQuad else { return }
+            self?.quad = quad
+            self?.displayQuad()
+        }
+    }
+
+    private func detect(image: UIImage, completion: @escaping (Quadrilateral?) -> Void) {
+        // Whether or not we detect a quad, present the edit view controller after attempting to detect a quad.
+        // *** Vision *requires* a completion block to detect rectangles, but it's instant.
+        // *** When using Vision, we'll present the normal edit view controller first, then present the updated edit view controller later.
+
+        guard let ciImage = CIImage(image: image) else { return }
+        let orientation = CGImagePropertyOrientation(image.imageOrientation)
+        let orientedImage = ciImage.oriented(forExifOrientation: Int32(orientation.rawValue))
+
+        if #available(iOS 11.0, *) {
+            // Use the VisionRectangleDetector on iOS 11 to attempt to find a rectangle from the initial image.
+            VisionRectangleDetector.rectangle(forImage: ciImage, orientation: orientation) { (quad) in
+                let detectedQuad = quad?.toCartesian(withHeight: orientedImage.extent.height)
+                completion(detectedQuad)
+            }
+        } else {
+            // Use the CIRectangleDetector on iOS 10 to attempt to find a rectangle from the initial image.
+            let detectedQuad = CIRectangleDetector.rectangle(forImage: ciImage)?.toCartesian(withHeight: orientedImage.extent.height)
+            completion(detectedQuad)
+        }
+    }
     
     private func reloadImage(withAngle angle: Measurement<UnitAngle>) {
         guard let newImage = image.rotated(by: angle) else { return }
@@ -181,7 +217,7 @@ public final class EditImageViewController: UIViewController {
     }
     
     /// Generates a `Quadrilateral` object that's centered and one third of the size of the passed in image.
-    private static func defaultQuad(forImage image: UIImage) -> Quadrilateral {
+    public static func defaultQuad(forImage image: UIImage) -> Quadrilateral {
         let topLeft = CGPoint(x: image.size.width / 3.0, y: image.size.height / 3.0)
         let topRight = CGPoint(x: 2.0 * image.size.width / 3.0, y: image.size.height / 3.0)
         let bottomRight = CGPoint(x: 2.0 * image.size.width / 3.0, y: 2.0 * image.size.height / 3.0)
@@ -193,7 +229,7 @@ public final class EditImageViewController: UIViewController {
     }
 
     /// Generates a `Quadrilateral` object that's cover all of image.
-    private static func defaultQuad(allOfImage image: UIImage, withOffset offset: CGFloat = 75) -> Quadrilateral {
+    public static func defaultQuad(allOfImage image: UIImage, withOffset offset: CGFloat = 75) -> Quadrilateral {
         let topLeft = CGPoint(x: offset, y: offset)
         let topRight = CGPoint(x: image.size.width - offset, y: offset)
         let bottomRight = CGPoint(x: image.size.width - offset, y: image.size.height - offset)
