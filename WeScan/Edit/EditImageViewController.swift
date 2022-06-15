@@ -20,7 +20,7 @@ public protocol EditImageViewDelegate: AnyObject {
 public final class EditImageViewController: UIViewController {
     
     /// The image the quadrilateral was detected on.
-    private var image: UIImage
+    public private(set) var image: UIImage
     
     /// The detected quadrilateral that can be edited by the user. Uses the image's coordinates.
     private var quad: Quadrilateral
@@ -70,12 +70,7 @@ public final class EditImageViewController: UIViewController {
         setupConstraints()
         zoomGestureController = ZoomGestureController(image: image, quadView: quadView)
         addLongGesture(of: zoomGestureController)
-
-        detect(image: image) { [weak self] detectedQuad in
-            guard let quad = detectedQuad else { return }
-            self?.quad = quad
-            self?.displayQuad()
-        }
+        useImage(image: image)
     }
     
     override public func viewDidLayoutSubviews() {
@@ -147,9 +142,10 @@ public final class EditImageViewController: UIViewController {
     }
     
     /// This function allow user to rotate image by 90 degree each and will reload image on image view.
-    public func rotateImage() {
-        let rotationAngle = Measurement<UnitAngle>(value: 90, unit: .degrees)
+    public func rotateImage(_ angle: Double = 90) {
+        let rotationAngle = Measurement<UnitAngle>(value: angle, unit: .degrees)
         reloadImage(withAngle: rotationAngle)
+        useImage(image: image)
     }
 
     public func useImage(image: UIImage) {
