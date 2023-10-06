@@ -20,7 +20,7 @@ public protocol EditImageViewDelegate: AnyObject {
 public final class EditImageViewController: UIViewController {
 
     /// The image the quadrilateral was detected on.
-    private var image: UIImage
+    public var image: UIImage
 
     /// The detected quadrilateral that can be edited by the user. Uses the image's coordinates.
     private var quad: Quadrilateral
